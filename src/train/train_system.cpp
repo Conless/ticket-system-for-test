@@ -13,7 +13,7 @@ TrainSystem::TrainSystem(const std::string &file_name, bool inherit_file)
     : train_info_db_(file_name + "_train_info"),
       train_date_info_db_(file_name + "_train_date_info"),
       train_station_info_db_(file_name + "_train_station_info"),
-      ticket_info_db_(file_name + "_ticket_info", 100, 100, 100),
+      ticket_info_db_(file_name + "_ticket_info"),
       ticket_waitlist_info_db_(file_name + "_ticket_waitlist_info") {}
 
 auto TrainSystem::AddTrain(const TrainID &train_id, int station_num, int seat_num, const vector<std::string> &stations,
@@ -402,10 +402,11 @@ auto TrainSystem::RefundTicket(const UserName &username, int order_num) -> bool 
   if (target_ticket_iter.IsEnd()) {
     throw Exception("Iterator error.");
   }
-  auto &target_ticket_info = target_ticket_iter->second;
+  const auto target_ticket_info = target_ticket_iter->second;
   if (target_ticket_info.status_ == -1) {
     return false;
   }
+  target_ticket_iter->second.status_ = -1;
   auto train_date_iter = train_date_info_db_.GetIterator({target_ticket_info.train_id_, target_ticket_info.date_});
   if (train_date_iter.IsEnd()) {
     throw Exception("Iterator error.");
@@ -438,7 +439,6 @@ auto TrainSystem::RefundTicket(const UserName &username, int order_num) -> bool 
       }
     }
   }
-  target_ticket_info.status_ = -1;
   return true;
 }
 
