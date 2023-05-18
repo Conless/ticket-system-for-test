@@ -233,21 +233,27 @@ auto BPLUSTREE_NTS_TYPE::GetValueInLeafPage(const KeyType &key, vector<ValueType
   auto leaf_page = ctx->basic_set_.back().As<LeafPage>();
   int index = leaf_page->GetLastIndexL(key, comparator) + 1;  // Same as above
   int size = leaf_page->GetSize();
-  for (; index < size; index++) {
-    if (comparator(leaf_page->KeyAt(index), key) > 0) {
-      break;
+  if (comparator(leaf_page->KeyAt(size - 1), key) <= 0) {
+    for (; index < size; index++) {
+      result->push_back(leaf_page->ValueAt(index));
     }
-    result->push_back(leaf_page->ValueAt(index));
+  } else {
+    for (; index < size; index++) {
+      if (comparator(leaf_page->KeyAt(index), key) > 0) {
+        break;
+      }
+      result->push_back(leaf_page->ValueAt(index));
+    }
   }
+  page_id_t next_leaf_id = leaf_page->GetNextPageId();
+  ctx->basic_set_.pop_back();
   if (index == size) {  // Reach the end of current page
-    page_id_t next_leaf_id = leaf_page->GetNextPageId();
     if (next_leaf_id != INVALID_PAGE_ID) {
       auto next_guard = bpm_->FetchPageBasic(next_leaf_id);
       ctx->basic_set_.push_back(std::move(next_guard));
       GetValueInLeafPage(key, result, ctx, comparator);
     }
   }
-  ctx->basic_set_.pop_back();
   return !result->empty();
 }
 
