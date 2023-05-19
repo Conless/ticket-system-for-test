@@ -186,33 +186,47 @@ auto TrainSystem::QueryTransfer(const std::string &date_str, const StationID &st
   std::pair<ResultKey, std::string> result{{{INT_MAX, INT_MAX}, {"", ""}}, "0"};
 
   for (const auto &start_train_station_info : start_trains_station_info) {
-    int start_dep_date = date - start_train_station_info.dep_time_;
+    int start_dep_date = date - start_train_station_info.dep_time_ / TIME_MAX_IN_DAY;
     int start_date = date;
     int start_time = start_train_station_info.dep_time_ % TIME_MAX_IN_DAY;
 
-    if (start_dep_date < start_train_station_info.dep_date_start_ ||
-        start_dep_date > start_train_station_info.dep_date_end_) {
+    if (start_date < start_train_station_info.dep_date_start_ ||
+        start_date > start_train_station_info.dep_date_end_) {
       continue;
     }
 
     const auto start_train_info = train_info_db_.Find(start_train_station_info.train_id_).second;
+    using StationIndex = std::pair<StationID, int>;
+    StationIndex start_arr_info[STATION_NUM_MAX];
+    for (int k = start_train_station_info.index_in_train_ + 1; k < start_train_info.station_num_; k++) {
+      start_arr_info[k] = {start_train_info.stations_id_[k], k};
+    }
+    conless::sort(start_arr_info + start_train_station_info.index_in_train_ + 1, start_arr_info + start_train_info.station_num_);
 
     for (const auto &dest_train_station_info : dest_trains_station_info) {
       const auto dest_train_info = train_info_db_.Find(dest_train_station_info.train_id_).second;
+      StationIndex dest_dep_info[STATION_NUM_MAX];
+      for (int l = 0; l < dest_train_station_info.index_in_train_; l++) {
+        dest_dep_info[l] = {dest_train_info.stations_id_[l], l};
+      }
+      conless::sort(dest_dep_info, dest_dep_info + dest_train_station_info.index_in_train_);
 
       if (dest_train_info.train_id_ == start_train_info.train_id_) {
         continue;
       }
 
-      for (int k = start_train_station_info.index_in_train_ + 1, l = 0;
-           k < start_train_info.station_num_ && l < dest_train_station_info.index_in_train_;) {
-        if (start_train_info.stations_id_[k] == dest_train_info.stations_id_[l]) {
+      for (int index_k = start_train_station_info.index_in_train_ + 1, index_l = 0;
+           index_k < start_train_info.station_num_ && index_l < dest_train_station_info.index_in_train_;) {
+        if (start_arr_info[index_k].first == dest_dep_info[index_l].first) {
+          int k = start_arr_info[index_k].second;
+          int l = dest_dep_info[index_l].second;
+
           int dest_dep_date =
-              GetEarliestDate(dest_train_info, l, start_date + start_train_info.arr_times_[l] / TIME_MAX_IN_DAY,
-                              start_train_info.arr_times_[l] % TIME_MAX_IN_DAY);
+              GetEarliestDate(dest_train_info, l, start_dep_date + start_train_info.arr_times_[k] / TIME_MAX_IN_DAY,
+                              start_train_info.arr_times_[k] % TIME_MAX_IN_DAY);
           if (dest_dep_date == -1) {
-            k++;
-            l++;
+            index_k++;
+            index_l++;
             continue;
           }
 
@@ -242,14 +256,14 @@ auto TrainSystem::QueryTransfer(const std::string &date_str, const StationID &st
             result.first = (sort_tag == 0) ? ResultKey{{tot_time, tot_cost}, {first_train_id, second_train_id}}
                                            : ResultKey{{tot_cost, tot_time}, {first_train_id, second_train_id}};
           }
-          k++;
-          l++;
+          index_k++;
+          index_l++;
           continue;
         }
-        if (start_train_info.stations_id_[k] < dest_train_info.stations_id_[l]) {
-          k++;
+        if (start_arr_info[index_k].first < dest_dep_info[index_l].first) {
+          index_k++;
         } else {
-          l++;
+          index_l++;
         }
       }
     }
