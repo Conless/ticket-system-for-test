@@ -182,10 +182,15 @@ auto TrainSystem::QueryTransfer(const std::string &date_str, const StationID &st
     return "0";
   }
 
+  bool stored_flag = false;
   vector<TrainInfo> dest_trains_info;
-  dest_trains_info.reserve(dest_trains_station_info.size());
-  for (const auto &dest_train_station_info : dest_trains_station_info) {
-    dest_trains_info.push_back(train_info_db_.Find(dest_train_station_info.train_id_).second);
+
+  if (dest_trains_station_info.size() <= 1000) {
+    stored_flag = true;
+    dest_trains_info.reserve(dest_trains_station_info.size());
+    for (const auto &dest_train_station_info : dest_trains_station_info) {
+      dest_trains_info.push_back(train_info_db_.Find(dest_train_station_info.train_id_).second);
+    }
   }
 
   using ResultKey = std::pair<std::pair<int, int>, std::pair<TrainID, TrainID>>;
@@ -211,7 +216,9 @@ auto TrainSystem::QueryTransfer(const std::string &date_str, const StationID &st
 
     int dest_train_index = 0;
     for (const auto &dest_train_station_info : dest_trains_station_info) {
-      const auto &dest_train_info = dest_trains_info[dest_train_index++];
+      const auto &dest_train_info = stored_flag ? dest_trains_info[dest_train_index]
+                                                : train_info_db_.GetIterator(dest_train_station_info.train_id_)->second;
+      dest_train_index++;
 
       StationIndex dest_dep_info[STATION_NUM_MAX];
       for (int l = 0; l < dest_train_station_info.index_in_train_; l++) {

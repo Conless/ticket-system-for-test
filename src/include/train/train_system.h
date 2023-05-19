@@ -47,6 +47,8 @@ class TrainSystem {
   BPlusTreeIndex<TrainStationID, TrainStationInfo> train_station_info_db_;
   BPlusTreeIndex<TicketID, TicketInfo> ticket_info_db_;
   BPlusTreeIndex<TrainDateTicketInfo, TicketWaitInfo> ticket_waitlist_info_db_;
+
+  size_t ans_;
 };
 
 }  // namespace conless
