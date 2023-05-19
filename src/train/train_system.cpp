@@ -182,6 +182,12 @@ auto TrainSystem::QueryTransfer(const std::string &date_str, const StationID &st
     return "0";
   }
 
+  vector<TrainInfo> dest_trains_info;
+  dest_trains_info.reserve(dest_trains_station_info.size());
+  for (const auto &dest_train_station_info : dest_trains_station_info) {
+    dest_trains_info.push_back(train_info_db_.Find(dest_train_station_info.train_id_).second);
+  }
+
   using ResultKey = std::pair<std::pair<int, int>, std::pair<TrainID, TrainID>>;
   std::pair<ResultKey, std::string> result{{{INT_MAX, INT_MAX}, {"", ""}}, "0"};
 
@@ -190,8 +196,7 @@ auto TrainSystem::QueryTransfer(const std::string &date_str, const StationID &st
     int start_date = date;
     int start_time = start_train_station_info.dep_time_ % TIME_MAX_IN_DAY;
 
-    if (start_date < start_train_station_info.dep_date_start_ ||
-        start_date > start_train_station_info.dep_date_end_) {
+    if (start_date < start_train_station_info.dep_date_start_ || start_date > start_train_station_info.dep_date_end_) {
       continue;
     }
 
@@ -201,10 +206,13 @@ auto TrainSystem::QueryTransfer(const std::string &date_str, const StationID &st
     for (int k = start_train_station_info.index_in_train_ + 1; k < start_train_info.station_num_; k++) {
       start_arr_info[k] = {start_train_info.stations_id_[k], k};
     }
-    conless::sort(start_arr_info + start_train_station_info.index_in_train_ + 1, start_arr_info + start_train_info.station_num_);
+    conless::sort(start_arr_info + start_train_station_info.index_in_train_ + 1,
+                  start_arr_info + start_train_info.station_num_);
 
+    int dest_train_index = 0;
     for (const auto &dest_train_station_info : dest_trains_station_info) {
-      const auto dest_train_info = train_info_db_.Find(dest_train_station_info.train_id_).second;
+      const auto &dest_train_info = dest_trains_info[dest_train_index++];
+
       StationIndex dest_dep_info[STATION_NUM_MAX];
       for (int l = 0; l < dest_train_station_info.index_in_train_; l++) {
         dest_dep_info[l] = {dest_train_info.stations_id_[l], l};
